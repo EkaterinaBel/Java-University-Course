@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<properties>
+    <locationFolderOne>files1</locationFolderOne>
+    <locationFolderTwo>files2</locationFolderTwo>
+	<port>9090</port>
+	<login>katya</login>
+	<ipAddress>255.255.102.57</ipAddress>
+	<password>333333</password>
+</properties>
