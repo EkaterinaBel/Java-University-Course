@@ -10,30 +10,17 @@ import java.util.Map;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 /**
- *      This class is designed to synchronize files from two folders. In it contained two HashMap in which files will
- * be stored from each folder. And also creates (or only is viewed) a temporary file that stores all objects files
- * (instances of the class FileMetadata) last synchronization.
- *      First method begin() starts which causes the method scan() to write files to the current upper level
- * (non-passage in depth) of the two folders in two HashMap. Then method synchronizationDirectory() stars, which
- * first scans the temporary file (if it exists) and compares it with HashMap1 and HashMap2 to identify files that have
- * been physically removed from the folders. Then, these files are deleted from the temporary file and two HashMap.
- * Follows we consider HashMap1 relative to HashMap2 if the files are added in one of the folders, they will added in another.
- * If the file has changed, the updated files are copied and replace the old files. The same happens when considering
- * HashMap2 relative to HashMap1. Finally, the results of the updated HashMap will be recorded to a temporary file.
- *      But at the same time, when considering the file is checked type files. And if it's a directory - it happens recursively
- * create a new instance of this class (class ScanDirectory), called again method begin(), etc. Thus there is happens deep pass,
- * as long as the source folders have subfolders.
- *      And the class one-time carries out synchronization files for the current level of depth in folders.
+ * This class is designed to synchronize files from two folders.
  */
 public class ScanDirectory {
 
-    File directory1;      // the source folder
-    File directory2;      // the source folder
-    String temporaryFileName;
-    String initRoot1;
-    String initRoot2;
-    HashMap<String, FileMetadata> directoryOne = new HashMap<String, FileMetadata>();
-    HashMap<String, FileMetadata> directoryTwo = new HashMap<String, FileMetadata>();
+    private File directory1;      // the source folder
+    private File directory2;      // the source folder
+    private final String temporaryFileName;
+    private String initRoot1;
+    private String initRoot2;
+    private HashMap<String, FileMetadata> directoryOne = new HashMap<String, FileMetadata>();
+    private HashMap<String, FileMetadata> directoryTwo = new HashMap<String, FileMetadata>();
 
     /**
      * This is a simple constructor that initializes the way to the two folders and name temporary file.
@@ -137,7 +124,7 @@ public class ScanDirectory {
      * @throws IOException - existence of a file error
      * @throws ClassNotFoundException - error may occur when reading objects of class FileMetadata from the temporary file
      */
-    public void synchronizationDirectory() throws IOException, ClassNotFoundException {
+    private void synchronizationDirectory() throws IOException, ClassNotFoundException {
 
         if (Files.exists(FileSystems.getDefault().getPath(temporaryFileName))) {
             ObjectInputStream fileStream = new ObjectInputStream(new FileInputStream(temporaryFileName));
@@ -200,7 +187,7 @@ public class ScanDirectory {
      * @throws IOException - existence of a file error
      * @throws ClassNotFoundException - error may occur when reading objects of class FileMetadata from the temporary file (here happens when call a method begin() )
      */
-    public HashMap<String, FileMetadata> swapDifferentFiles(HashMap<String, FileMetadata> directoryObject,
+    private HashMap<String, FileMetadata> swapDifferentFiles(HashMap<String, FileMetadata> directoryObject,
                   HashMap<String, FileMetadata> directoryOther) throws IOException, ClassNotFoundException {
 
         HashMap<String, FileMetadata> tmpF = new HashMap<>();
@@ -241,17 +228,4 @@ public class ScanDirectory {
         return tmpF;
     }
 
-    /**
-     * The method prints information about the files that contain HashMap.
-     * @param files - one of the two HashMap
-     * @param name - the name of this HashMap ("directoryOne" or "directoryTwo")
-     */
-    private void getCollection(HashMap<String, FileMetadata> files, String name) {
-
-        System.out.println("HashMap " + name + " содержит:");
-        for (Map.Entry<String, FileMetadata> o: files.entrySet()){
-            System.out.println(o.getKey() + " " + o.getValue().getTimeChange() + " " + o.getValue().getTypeFile());
-        }
-        System.out.println();
-    }
 }
