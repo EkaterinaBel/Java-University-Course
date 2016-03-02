@@ -24,8 +24,8 @@ public class Main {
         } catch (IOException e) {
             e.printStackTrace();
         }
-       /* System.out.println("------------------------------------------------------");
-        System.out.println("Timemillis: " + (System.currentTimeMillis() - time));*/
+       /* System.out.println("------------------------------------------------------");*/
+       /* System.out.println("Timemillis: " + (System.currentTimeMillis() - time));*/
     }
 
 }
