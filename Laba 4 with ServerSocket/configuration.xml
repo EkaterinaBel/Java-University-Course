@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<properties>
+    <locationFolderOne>filesTest1</locationFolderOne>
+    <locationFolderTwo>filesTest2</locationFolderTwo>
+    <port>9090</port>
+    <host>Belka</host>
+</properties>
