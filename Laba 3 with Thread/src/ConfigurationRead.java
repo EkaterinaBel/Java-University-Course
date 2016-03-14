@@ -1,15 +1,20 @@
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import javax.xml.xpath.*;
-
-import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 
 /**
  * This class is designed to work with xml-files. It contains methods that allow you to receive, replace
@@ -72,62 +77,33 @@ public class ConfigurationRead {
     }
 
     /**
-     * The method checks the xml-file to the content in it of the key "newRecord".
-     * @param newRecord - key, which will be found in the file
-     * @return true if the key is found, false - in the opposite case
-     * @throws IOException - error associated with reading or existence file
-     */
-    private boolean checkExistenceRecord(String newRecord) throws IOException {
-
-        BufferedReader reader = new BufferedReader(new FileReader(fileName));
-        String line;
-        while ((line = reader.readLine()) != null) {
-            if (line.contains("<" + newRecord + ">")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * The method adds a record (key - value) to the xml-file.
      * @param newKey - key to add
      * @param newValue - value to add
-     * @throws IOException - error associated with reading, writing or existence file
+     * @throws TransformerException specifies an exceptional condition that occured during the transformation process
      */
-    public void addRecordInXML(String newKey, String newValue) throws IOException {
-        if(checkExistenceRecord(newKey)) {
-            System.out.println("Recording with this key already exists");
+    public void addRecordInXML(String newKey, String newValue) throws TransformerException {
+
+        if (newKey != null && newValue != null && getProperty(newKey).equals("")) {
+            Node root = documentConfig.getFirstChild();
+            Element element = documentConfig.createElement(newKey);
+            root.appendChild(element);
+            element.insertBefore(documentConfig.createTextNode(newValue), element.getFirstChild());
+            updateXML();
         }
-        else {
-            String stopWord = "</properties>";
-            List<String> records = new ArrayList<String>();
-            BufferedReader reader = new BufferedReader(new FileReader(fileName));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (!line.contains(stopWord)) {
-                    records.add(line);
-                }
-            }
-            records.add("\t" + "<" + newKey + ">" + newValue + "</" + newKey + ">");
-            records.add("</properties>");
-            Writer writer = null;
-            try {
-                writer = new FileWriter(fileName);
-                for (String o : records) {
-                    writer.write(o);
-                    writer.write(System.getProperty("line.separator"));
-                }
-                writer.flush();
-            } catch (Exception e) {
-            } finally {
-                if (writer != null) {
-                    try {
-                        writer.close();
-                    } catch (IOException ex) {}
-                }
-            }
-            createXMLFileObject();
+    }
+
+    /**
+     * The method deletes the record for a key.
+     * @param key - key to delete the record
+     * @throws TransformerException specifies an exceptional condition that occured during the transformation process
+     */
+    public void deleteRecordInXML(String key) throws TransformerException {
+
+        if (key != null && !getProperty(key).equals("")) {
+            NodeList el = documentConfig.getElementsByTagName(key);
+            documentConfig.getFirstChild().removeChild(el.item(0));
+            updateXML();
         }
     }
 
@@ -135,76 +111,28 @@ public class ConfigurationRead {
      * The method replaces the value contained in the key to the new.
      * @param key - key to the new value
      * @param newValue - value to change
-     * @throws IOException - error associated with reading, writing or existence file
+     * @throws TransformerException specifies an exceptional condition that occured during the transformation process
      */
-    public void setRecordInXML(String key, String newValue) throws IOException {
-        if(!checkExistenceRecord(key)) {
-            System.out.println("This key not exists in file");
-        }
-        else {
-            List<String> records = new ArrayList<String>();
-            BufferedReader reader = new BufferedReader(new FileReader(fileName));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.contains("<" + key + ">")) records.add("\t" + "<" + key + ">" + newValue + "</" + key + ">");
-                else records.add(line);
-            }
-            Writer writer = null;
-            try {
-                writer = new FileWriter(fileName);
-                for (String o : records) {
-                    writer.write(o);
-                    writer.write(System.getProperty("line.separator"));
-                }
-                writer.flush();
-            } catch (Exception e) {
-            } finally {
-                if (writer != null) {
-                    try {
-                        writer.close();
-                    } catch (IOException ex) {}
-                }
-            }
-            createXMLFileObject();
+    public void replaceRecordInXML(String key, String newValue) throws TransformerException {
+
+        if (key != null && newValue != null && !getProperty(key).equals("")) {
+            NodeList el = documentConfig.getElementsByTagName(key);
+            el.item(0).setTextContent(newValue);
+            updateXML();
         }
     }
 
     /**
-     * The method deletes the record for a key.
-     * @param key - key to delete the record
-     * @throws IOException - error associated with reading, writing or existence file
+     * This method updates the xml-file in accordance with changes
+     * @throws TransformerException specifies an exceptional condition that occured during the transformation process
      */
-    public void deleteRecordInXML(String key) throws IOException {
-        if(!checkExistenceRecord(key)) {
-            System.out.println("This key not exists in file");
-        }
-        else {
-            List<String> records = new ArrayList<String>();
-            BufferedReader reader = new BufferedReader(new FileReader(fileName));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (!line.contains(key)) {
-                    records.add(line);
-                }
-            }
-            Writer writer = null;
-            try {
-                writer = new FileWriter(fileName);
-                for (String o : records) {
-                    writer.write(o);
-                    writer.write(System.getProperty("line.separator"));
-                }
-                writer.flush();
-            } catch (Exception e) {
-            } finally {
-                if (writer != null) {
-                    try {
-                        writer.close();
-                    } catch (IOException ex) {}
-                }
-            }
-            createXMLFileObject();
-        }
+    private void updateXML() throws TransformerException {
+
+        DOMSource source = new DOMSource(documentConfig);
+        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+        Transformer transformer = transformerFactory.newTransformer();
+        StreamResult result = new StreamResult("configuration.xml");
+        transformer.transform(source, result);
     }
 
 }
