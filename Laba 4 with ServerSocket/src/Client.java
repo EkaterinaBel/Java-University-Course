@@ -1,3 +1,5 @@
+import javafx.util.Pair;
+
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -7,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.TreeMap;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
@@ -14,13 +17,14 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 /**
  * This class is designed to synchronize files from two folders. Actions are performed on the client.
  */
-public class Client extends Thread{
+public class Client extends Thread implements Serializable{
 
     private File directory2;      // the source folder
     private int port;
     private final String host;
     private TreeMap<String, FileMetadata> directoryTwo = new TreeMap<>();
     private TreeMap<String, FileMetadata> mapContainsChanges = new TreeMap<>();
+    private TreeMap<String, FileMetadata> mapContainsChangesFromServer = new TreeMap<>();
 
     /**
      * This is a simple constructor that initializes the path to the folder, hostname and name port.
@@ -52,9 +56,55 @@ public class Client extends Thread{
             fromServer = new Socket(host.getHostName(), port);
             oos = new ObjectOutputStream(fromServer.getOutputStream());
             oos.writeObject(directoryTwo);
+
             in = new ObjectInputStream(fromServer.getInputStream());
-            mapContainsChanges = (TreeMap<String, FileMetadata>) in.readObject();
-            physicalSynchronization();
+            if (!in.readObject().equals("size mapContainsChanges = 0")) {
+
+                mapContainsChanges = (TreeMap<String, FileMetadata>) in.readObject();
+                physicalSynchronization();
+
+                TreeMap<String, FileMetadata> mapContainsChangesFromClient = new TreeMap<>();
+                for (String o : mapContainsChanges.keySet()) {
+                    if (mapContainsChanges.get(o).getName().indexOf(directory2.getName()) == 0 && !mapContainsChanges.get(o).getTypeFile()
+                            && !mapContainsChanges.get(o).getFileOperations()) {
+                        mapContainsChangesFromClient.put(o, mapContainsChanges.get(o));
+                    }
+                }
+                if (mapContainsChangesFromClient.size() != 0) {
+                    oos.writeObject("size mapContainsChangesFromClient != 0");
+                    oos.writeObject(mapContainsChangesFromClient);
+                    for (Map.Entry<String, FileMetadata> entry : mapContainsChangesFromClient.entrySet()) {
+                        File file = new File(entry.getValue().getName());
+                        byte[] fileArray = new byte[(int) file.length()];
+                        BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
+                        bis.read(fileArray, 0, fileArray.length);
+                        Pair<String, byte[]> pair = new Pair<>(entry.getKey(), fileArray);
+                        oos.writeObject(pair);
+                    }
+                } else if (mapContainsChangesFromClient.size() == 0){
+                    oos.writeObject("size mapContainsChangesFromClient = 0");
+                }
+
+                if (in.readObject().equals("size mapContainsChangesFromServer != 0")) {
+                    mapContainsChangesFromServer = (TreeMap<String, FileMetadata>) in.readObject();
+                    int k = 0;
+                    try {
+                        while (k != mapContainsChangesFromServer.size()) {
+                            Pair<String, byte[]> pair = (Pair<String, byte[]>) in.readObject();
+                            File newFile = new File("fromServer.tmp");
+                            newFile.createNewFile();
+                            FileOutputStream fos = new FileOutputStream(newFile);
+                            fos.write(pair.getValue(), 0, pair.getValue().length);
+                            newFile.setLastModified(mapContainsChangesFromServer.get(pair.getKey()).getTimeChange());
+
+                            Path pathSourse = Paths.get(newFile.getName());
+                            Path pathDestination = Paths.get(directory2 + File.separator + pair.getKey());   // path to the file that will be created as a result of copying (including the new file name)
+                            Files.copy(pathSourse, pathDestination, REPLACE_EXISTING);
+                            k++;
+                        }
+                    } catch (EOFException ignored) {}
+                }
+            }
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
@@ -124,10 +174,9 @@ public class Client extends Thread{
     }
 
     /**
-     * This method provides a physical synchronization source folders. It removes, copies, replaces files in folder.
-     * @throws IOException - error associated with copying/replacement file
+     * This method provides a partially physical synchronization source folders. It removes files in folder or creating new folders.
      */
-    private void physicalSynchronization() throws IOException {
+    private void physicalSynchronization() {
 
         String initRoot = directory2.getPath();
         for(String fileName: mapContainsChanges.keySet()) {
@@ -136,14 +185,11 @@ public class Client extends Thread{
                 if (Files.exists(FileSystems.getDefault().getPath(initRoot + File.separator + fileName))) {
                     deleteAll(new File(initRoot + File.separator + fileName));
                 }
-            } else if (!mapContainsChanges.get(fileName).getTypeFile()){
-                Path pathSourse = Paths.get(mapContainsChanges.get(fileName).getName());     // the path to the file that we copied
-                Path pathDestination = Paths.get(initRoot + File.separator + fileName);   // path to the file that will be created as a result of copying (including the new file name)
-                Files.copy(pathSourse, pathDestination, REPLACE_EXISTING);
-            } else {
+            } else if (mapContainsChanges.get(fileName).getTypeFile()){
                 File tmpDirectory = new File(initRoot + File.separator + fileName);
                 tmpDirectory.mkdir();
             }
         }
     }
+
 }

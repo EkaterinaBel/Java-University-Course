@@ -1,3 +1,5 @@
+import javafx.util.Pair;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -15,7 +17,7 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 /**
  * This class is designed to synchronize files from two folders. Actions are performed on the server.
  */
-public class Server extends Thread {
+public class Server extends Thread implements Serializable{
 
     private File directory1;      // the source folder
     private final String temporaryFileName;
@@ -24,6 +26,7 @@ public class Server extends Thread {
     private TreeMap<String, FileMetadata> directoryTwo = new TreeMap<>();
     private TreeMap<String, FileMetadata> mapForTmpFile = new TreeMap<>();
     private TreeMap<String, FileMetadata> mapContainsChanges = new TreeMap<>();
+    private TreeMap<String, FileMetadata> mapContainsChangesFromClient = new TreeMap<>();
 
     /**
      * This is a simple constructor that initializes the path to the folder and port.
@@ -43,7 +46,6 @@ public class Server extends Thread {
 
         ObjectInputStream in = null;
         ObjectOutputStream oos = null;
-        ObjectOutputStream recordInfFile = null;
         ServerSocket server = null;
         Socket fromClient = null;
         try {
@@ -52,21 +54,71 @@ public class Server extends Thread {
             fromClient = server.accept();
             in = new ObjectInputStream(fromClient.getInputStream());
             directoryTwo = (TreeMap<String, FileMetadata>) in.readObject();
+
             synchronizationDirectory();
-            oos = new ObjectOutputStream(fromClient.getOutputStream());
-            oos.writeObject(mapContainsChanges);
-            recordInfFile = new ObjectOutputStream(new FileOutputStream(temporaryFileName));
-            recordInfFile.writeObject(mapForTmpFile);
-            physicalSynchronization();
+
+            if (mapContainsChanges.size() != 0) {
+
+                oos = new ObjectOutputStream(fromClient.getOutputStream());
+                oos.writeObject("continue");
+                oos.writeObject(mapContainsChanges);
+                physicalSynchronization();
+                if (in.readObject().equals("size mapContainsChangesFromClient != 0")) {
+                    mapContainsChangesFromClient = (TreeMap<String, FileMetadata>) in.readObject();
+                    int k = 0;
+                    try {
+                        while (k != mapContainsChangesFromClient.size()) {
+                            Pair<String, byte[]> pair = (Pair<String, byte[]>) in.readObject();
+                            File newFile = new File("fromClient.tmp");
+                            newFile.createNewFile();
+                            FileOutputStream fos = new FileOutputStream(newFile);
+                            fos.write(pair.getValue(), 0, pair.getValue().length);
+                            newFile.setLastModified(mapContainsChangesFromClient.get(pair.getKey()).getTimeChange());
+
+                            Path pathSourse = Paths.get(newFile.getName());
+                            Path pathDestination = Paths.get(directory1 + File.separator + pair.getKey());   // path to the file that will be created as a result of copying (including the new file name)
+                            Files.copy(pathSourse, pathDestination, REPLACE_EXISTING);
+                            k++;
+                        }
+                    } catch (EOFException ignored) {}
+                }
+                TreeMap<String, FileMetadata> mapContainsChangesFromServer = new TreeMap<>();
+                for (String o : mapContainsChanges.keySet()) {
+                    if (mapContainsChanges.get(o).getName().indexOf(directory1.getName()) == 0 && !mapContainsChanges.get(o).getTypeFile()
+                            && !mapContainsChanges.get(o).getFileOperations()) {
+                        mapContainsChangesFromServer.put(o, mapContainsChanges.get(o));
+                    }
+                }
+                if (mapContainsChangesFromServer.size() != 0) {
+                    oos.writeObject("size mapContainsChangesFromServer != 0");
+                    oos.writeObject(mapContainsChangesFromServer);
+                    for (Map.Entry<String, FileMetadata> entry : mapContainsChangesFromServer.entrySet()) {
+
+                        File file = new File(entry.getValue().getName());
+                        byte[] fileArray = new byte[(int) file.length()];
+                        BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
+                        bis.read(fileArray, 0, fileArray.length);
+                        Pair<String, byte[]> pair = new Pair<>(entry.getKey(), fileArray);
+                        oos.writeObject(pair);
+                    }
+                } else if (mapContainsChangesFromServer.size() == 0){
+                    oos.writeObject("size mapContainsChangesFromServer = 0");
+                }
+            } else {
+                oos = new ObjectOutputStream(fromClient.getOutputStream());
+                oos.writeObject("size mapContainsChanges = 0");
+            }
+            oos = new ObjectOutputStream(new FileOutputStream(temporaryFileName));
+            oos.writeObject(mapForTmpFile);
+
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         } finally {
             try {
-                oos.close();
                 in.close();
-                recordInfFile.close();
+                oos.close();
                 fromClient.close();
                 server.close();
             } catch (IOException ex) {}
@@ -202,10 +254,9 @@ public class Server extends Thread {
     }
 
     /**
-     * This method provides a physical synchronization source folders. It removes, copies, replaces files in folders.
-     * @throws IOException - error associated with copying/replacement file
+     * This method provides a partially physical synchronization source folders. It removes files in folder or creating new folders.
      */
-    private void physicalSynchronization() throws IOException {
+    private void physicalSynchronization() {
 
         String initRoot = directory1.getPath();
         for(String fileName: mapContainsChanges.keySet()) {
@@ -214,11 +265,7 @@ public class Server extends Thread {
                 if (Files.exists(FileSystems.getDefault().getPath(initRoot + File.separator + fileName))) {
                     deleteAll(new File(initRoot + File.separator + fileName));
                 }
-            } else if (!mapContainsChanges.get(fileName).getTypeFile()){
-                Path pathSourse = Paths.get(mapContainsChanges.get(fileName).getName());     // the path to the file that we copied
-                Path pathDestination = Paths.get(initRoot + File.separator + fileName);   // path to the file that will be created as a result of copying (including the new file name)
-                Files.copy(pathSourse, pathDestination, REPLACE_EXISTING);
-            } else {
+            } else if (mapContainsChanges.get(fileName).getTypeFile()){
                 File tmpDirectory = new File(initRoot + File.separator + fileName);
                 tmpDirectory.mkdir();
             }

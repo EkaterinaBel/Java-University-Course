@@ -12,7 +12,9 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
 import javax.xml.xpath.*;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
@@ -88,7 +90,7 @@ public class ConfigurationRead {
             Node root = documentConfig.getFirstChild();
             Element element = documentConfig.createElement(newKey);
             root.appendChild(element);
-            element.insertBefore(documentConfig.createTextNode(newValue), element.getFirstChild());
+            element.appendChild(documentConfig.createTextNode(newValue));
             updateXML();
         }
     }
@@ -128,9 +130,11 @@ public class ConfigurationRead {
      */
     private void updateXML() throws TransformerException {
 
+        StreamSource styleSource = new StreamSource(new File("res/Config.xml"));
+
         DOMSource source = new DOMSource(documentConfig);
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
-        Transformer transformer = transformerFactory.newTransformer();
+        Transformer transformer = transformerFactory.newTransformer(styleSource);
         StreamResult result = new StreamResult("configuration.xml");
         transformer.transform(source, result);
     }
