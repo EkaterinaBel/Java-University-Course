@@ -51,66 +51,68 @@ public class Server extends Thread implements Serializable{
         try {
             scan(directory1.getPath(), directory1, directoryOne);
             server = new ServerSocket(port);
-            fromClient = server.accept();
-            in = new ObjectInputStream(fromClient.getInputStream());
-            directoryTwo = (TreeMap<String, FileMetadata>) in.readObject();
+            while (!Thread.currentThread().isInterrupted()) {
+                fromClient = server.accept();
+                in = new ObjectInputStream(fromClient.getInputStream());
+                directoryTwo = (TreeMap<String, FileMetadata>) in.readObject();
 
-            synchronizationDirectory();
+                synchronizationDirectory();
 
-            if (mapContainsChanges.size() != 0) {
+                if (mapContainsChanges.size() != 0) {
 
-                oos = new ObjectOutputStream(fromClient.getOutputStream());
-                oos.writeObject("continue");
-                oos.writeObject(mapContainsChanges);
-                physicalSynchronization();
-                if (in.readObject().equals("size mapContainsChangesFromClient != 0")) {
-                    mapContainsChangesFromClient = (TreeMap<String, FileMetadata>) in.readObject();
-                    int k = 0;
-                    try {
-                        while (k != mapContainsChangesFromClient.size()) {
-                            Pair<String, byte[]> pair = (Pair<String, byte[]>) in.readObject();
-                            File newFile = new File("fromClient.tmp");
-                            newFile.createNewFile();
-                            FileOutputStream fos = new FileOutputStream(newFile);
-                            fos.write(pair.getValue(), 0, pair.getValue().length);
-                            newFile.setLastModified(mapContainsChangesFromClient.get(pair.getKey()).getTimeChange());
+                    oos = new ObjectOutputStream(fromClient.getOutputStream());
+                    oos.writeObject("continue");
+                    oos.writeObject(mapContainsChanges);
+                    physicalSynchronization();
+                    if (in.readObject().equals("size mapContainsChangesFromClient != 0")) {
+                        mapContainsChangesFromClient = (TreeMap<String, FileMetadata>) in.readObject();
+                        int k = 0;
+                        try {
+                            while (k != mapContainsChangesFromClient.size()) {
+                                Pair<String, byte[]> pair = (Pair<String, byte[]>) in.readObject();
+                                File newFile = new File("fromClient.tmp");
+                                newFile.createNewFile();
+                                FileOutputStream fos = new FileOutputStream(newFile);
+                                fos.write(pair.getValue(), 0, pair.getValue().length);
+                                newFile.setLastModified(mapContainsChangesFromClient.get(pair.getKey()).getTimeChange());
 
-                            Path pathSourse = Paths.get(newFile.getName());
-                            Path pathDestination = Paths.get(directory1 + File.separator + pair.getKey());   // path to the file that will be created as a result of copying (including the new file name)
-                            Files.copy(pathSourse, pathDestination, REPLACE_EXISTING);
-                            k++;
+                                Path pathSourse = Paths.get(newFile.getName());
+                                Path pathDestination = Paths.get(directory1 + File.separator + pair.getKey());   // path to the file that will be created as a result of copying (including the new file name)
+                                Files.copy(pathSourse, pathDestination, REPLACE_EXISTING);
+                                k++;
+                            }
+                        } catch (EOFException ignored) {
                         }
-                    } catch (EOFException ignored) {}
-                }
-                TreeMap<String, FileMetadata> mapContainsChangesFromServer = new TreeMap<>();
-                for (String o : mapContainsChanges.keySet()) {
-                    if (mapContainsChanges.get(o).getName().indexOf(directory1.getName()) == 0 && !mapContainsChanges.get(o).getTypeFile()
-                            && !mapContainsChanges.get(o).getFileOperations()) {
-                        mapContainsChangesFromServer.put(o, mapContainsChanges.get(o));
                     }
-                }
-                if (mapContainsChangesFromServer.size() != 0) {
-                    oos.writeObject("size mapContainsChangesFromServer != 0");
-                    oos.writeObject(mapContainsChangesFromServer);
-                    for (Map.Entry<String, FileMetadata> entry : mapContainsChangesFromServer.entrySet()) {
+                    TreeMap<String, FileMetadata> mapContainsChangesFromServer = new TreeMap<>();
+                    for (String o : mapContainsChanges.keySet()) {
+                        if (mapContainsChanges.get(o).getName().indexOf(directory1.getName()) == 0 && !mapContainsChanges.get(o).getTypeFile()
+                                && !mapContainsChanges.get(o).getFileOperations()) {
+                            mapContainsChangesFromServer.put(o, mapContainsChanges.get(o));
+                        }
+                    }
+                    if (mapContainsChangesFromServer.size() != 0) {
+                        oos.writeObject("size mapContainsChangesFromServer != 0");
+                        oos.writeObject(mapContainsChangesFromServer);
+                        for (Map.Entry<String, FileMetadata> entry : mapContainsChangesFromServer.entrySet()) {
 
-                        File file = new File(entry.getValue().getName());
-                        byte[] fileArray = new byte[(int) file.length()];
-                        BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
-                        bis.read(fileArray, 0, fileArray.length);
-                        Pair<String, byte[]> pair = new Pair<>(entry.getKey(), fileArray);
-                        oos.writeObject(pair);
+                            File file = new File(entry.getValue().getName());
+                            byte[] fileArray = new byte[(int) file.length()];
+                            BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
+                            bis.read(fileArray, 0, fileArray.length);
+                            Pair<String, byte[]> pair = new Pair<>(entry.getKey(), fileArray);
+                            oos.writeObject(pair);
+                        }
+                    } else if (mapContainsChangesFromServer.size() == 0) {
+                        oos.writeObject("size mapContainsChangesFromServer = 0");
                     }
-                } else if (mapContainsChangesFromServer.size() == 0){
-                    oos.writeObject("size mapContainsChangesFromServer = 0");
+                } else {
+                    oos = new ObjectOutputStream(fromClient.getOutputStream());
+                    oos.writeObject("size mapContainsChanges = 0");
                 }
-            } else {
-                oos = new ObjectOutputStream(fromClient.getOutputStream());
-                oos.writeObject("size mapContainsChanges = 0");
+                oos = new ObjectOutputStream(new FileOutputStream(temporaryFileName));
+                oos.writeObject(mapForTmpFile);
             }
-            oos = new ObjectOutputStream(new FileOutputStream(temporaryFileName));
-            oos.writeObject(mapForTmpFile);
-
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
