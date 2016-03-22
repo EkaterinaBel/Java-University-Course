@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><properties>
+    <locationFolderOne>files1</locationFolderOne>
+    <locationFolderTwo>files2</locationFolderTwo>
+    <port>9191</port>
+    <host>localhost</host>
+</properties>
