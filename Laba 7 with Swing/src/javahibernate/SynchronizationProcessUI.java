@@ -18,11 +18,11 @@ public class SynchronizationProcessUI extends JFrame{
     public JFrame synchForm = this;
     public JProgressBar progressClient;
     public JProgressBar progressServer;
-    public JLabel processOnClient = new JLabel();
-    public JLabel processOnServer = new JLabel();
-    public JLabel endSynchronized = new JLabel();
-    public boolean bolClient;
-    public boolean bolServer;
+    private JLabel processOnClient = new JLabel();
+    private JLabel processOnServer = new JLabel();
+    private JLabel endSynchronized = new JLabel();
+    private boolean bolClient;
+    private boolean bolServer;
 
     /**
      * This constructor which are set parameters of components on the form.

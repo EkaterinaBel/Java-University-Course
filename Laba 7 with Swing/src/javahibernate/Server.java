@@ -33,8 +33,8 @@ public class Server extends Thread implements Serializable{
 
     private volatile boolean endServerUI;       // flag that determines that the server finished (for UI)
     private volatile long sizeServerUI;         // size files in mapContainsChanges (for UI)
-    private volatile String nameFileServerUI;   // name of the file from mapContainsChanges with which the server operates at
-                                                                                                    // the moment (for UI)
+    private volatile String nameFileServerUI = " ";   // name of the file from mapContainsChanges with which the server operates
+                                                                                                    // at the moment (for UI)
     /**
      * This is a simple constructor that initializes the path to the folder and port.
      * @param directory1 - the way to the first folder
@@ -129,11 +129,11 @@ public class Server extends Thread implements Serializable{
                         } else if (mapContainsChangesFromServer.size() == 0) {
                             oos.writeObject("size mapContainsChangesFromServer = 0");
                         }
-                        oos = new ObjectOutputStream(new FileOutputStream(temporaryFileName));
-                        oos.writeObject(mapForTmpFile);
                     } else {
                         oos.writeObject("size mapContainsChanges = 0");
                     }
+                    oos = new ObjectOutputStream(new FileOutputStream(temporaryFileName));
+                    oos.writeObject(mapForTmpFile);
                     endServerUI = true;
                     oos = new ObjectOutputStream(fromClient.getOutputStream());
                     oos.writeObject(endServerUI);
