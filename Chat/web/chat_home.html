@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<link href="css/style_home.css" rel="stylesheet">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>ChatPairOfSocks.ru - Home</title>
+    <script type="text/javascript">
+
+        window.onload = function () {
+            if (typeof history.pushState === "function") {
+                history.pushState("jibberish", null, null);
+                window.onpopstate = function () {
+                    history.pushState('newjibberish', null, null);
+                };
+            }
+            else {
+                var ignoreHashChange = true;
+                window.onhashchange = function () {
+                    if (!ignoreHashChange) {
+                        ignoreHashChange = true;
+                        window.location.hash = Math.random();
+                    }
+                    else {
+                        ignoreHashChange = false;
+                    }
+                };
+            }
+        };
+    </script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+    <script>
+        var mesAuth = "0";
+        $("#mes").empty().html('');
+        $(document).ready(function(){
+            $("#auth-button").click(function(){
+                var password = $("input#password").val();
+                var login = $("input#login").val().toLowerCase();
+                if (login == '' || password == '') {
+                    $("#mes").empty().html('Заполните все поля');
+                } else {
+                    var dataString = {
+                        "login": login,
+                        "password": password
+                    };
+                    $.ajax({
+                        type: "POST",
+                        async : false,
+                        url: "rest/chat/auth",
+                        dataType: 'json',
+                        cache: false,
+                        contentType: "application/json",
+                        data: JSON.stringify(dataString),
+                        success: function (data) {
+                            mesAuth = data.message;
+                        },
+                        error: function (jqXHR, exception) {
+                            alert("Sorry, server error");
+                        }
+                    });
+                }
+                if (mesAuth === "authOK") {
+                    window.location.href = "http://localhost:8080/chat.html?login="+ login;
+                } else if (mesAuth != "0"){
+                    $("#login").val('');
+                    $("#password").val('');
+                    $("#mes").empty().html(mesAuth);
+                    mesAuth = "0";
+                }
+                return false;});
+        });
+
+    </script>
+
+</head>
+
+<body>
+<div id="1" class="main">
+
+    <div class = "centreImage">
+        <div class = "font">
+            <p id="quizar">Chat Pair of socks!</p>
+        </div>
+        <div id="tt" class = "authoriz">
+            <form id="ttt" class="authozForm">
+                <label>Логин</label>
+                <input type="text" id="login" size="30">
+                <label>Пароль</label>
+                <input type="password" id="password" size="30">
+                <input class="submit_authoriz" id="auth-button" type="submit" value="Вход">
+                <a href="register.html">Регистрация</a><br><br>
+                <label class="message" id="mes"></label>
+            </form>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

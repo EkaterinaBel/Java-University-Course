@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<link href="css/style_home.css" rel="stylesheet">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>ChatPairOfSocks.ru - Register</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+    <script>
+        var mesAuth = "0";
+        $("#mes").empty().html('');
+        $(document).ready(function(){
+            $("#reg-button").click(function(){
+                var password = $("input#password").val();
+                var password2 = $("input#password2").val();
+                var login = $("input#login").val().toLowerCase();
+                if (login == '' || password == '' || password2 == '') {
+                    $("#mes").empty().html('Заполните все поля');
+                } else if (password.length < 6) {
+                    $("#password").val('');
+                    $("#password2").val('');
+                    $("#mes").empty().html('Длина пароля должна быть минимум 6 символов');
+                } else if (password != password2) {
+                    $("#password").val('');
+                    $("#password2").val('');
+                    $("#mes").empty().html('Пароль не совпадает с ранее введенным');
+                } else {
+                    var dataString = {
+                        "login": login,
+                        "password": password
+                    };
+                    $.ajax({
+                        type: "POST",
+                        async : false,
+                        url: "rest/chat/reg",
+                        dataType: 'json',
+                        cache: false,
+                        contentType: "application/json",
+                        data: JSON.stringify(dataString),
+                        success: function (data) {
+                            mesAuth = data.message;
+                        },
+                        error: function (jqXHR, exception) {
+                            alert("Sorry, server error");
+                        }
+                    });
+                }
+                if (mesAuth === "regOK") {
+                    window.location.href = "http://localhost:8080/chat.html?login="+ login;
+                } else if (mesAuth != "0"){
+                    $("#login").val('');
+                    $("#mes").empty().html(mesAuth);
+                    mesAuth = "0";
+                }
+                return false;});
+        });
+
+    </script>
+
+</head>
+
+<body>
+<div id="1" class="main">
+
+    <div class = "centreImage">
+        <div class = "font">
+            <p id="quizar">Chat Pair of socks!</p>
+        </div>
+        <div id="tt" class = "register">
+            <form id="ttt" class="authozForm">
+                <label class="pas">Логин</label>
+                <input type="text" id="login" size="30">
+                <label class="pas">Пароль</label>
+                <input type="password" id="password" size="30">
+                <label class="pas">Повторите пароль</label>
+                <input type="password" id="password2" size="30">
+                <input class="submit_register" id="reg-button" type="submit" value="Регистрация"><br><br>
+                <label class="message" id="mes"></label>
+            </form>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

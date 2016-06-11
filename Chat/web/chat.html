@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<link href="css/style_chat.css" rel="stylesheet">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+    <title>Chat</title>
+    <script type="text/javascript">
+
+        window.onload = function () {
+            if (typeof history.pushState === "function") {
+                history.pushState("jibberish", null, null);
+                window.onpopstate = function () {
+                    history.pushState('newjibberish', null, null);
+                };
+            }
+            else {
+                var ignoreHashChange = true;
+                window.onhashchange = function () {
+                    if (!ignoreHashChange) {
+                        ignoreHashChange = true;
+                        window.location.hash = Math.random();
+                    }
+                    else {
+                        ignoreHashChange = false;
+                    }
+                };
+            }
+        };
+
+        var param = window.location.search.substring(1);
+        login = param.substring(param.indexOf("=") + 1);
+        var k = 0;
+        var websocket = new WebSocket("ws://localhost:8080/chatroomServerEndpoint");
+
+        websocket.onmessage = function processMessage(message) {
+            var jsonDate = JSON.parse(message.data);
+            for(var event in jsonDate){
+                var dataCopy = jsonDate[event];
+                if (event === "userOnline") {
+                    document.getElementById("usersOnlineLabel").innerText = "";
+                }
+                for(key in dataCopy){
+                    var dataCopy2 = dataCopy[key];
+                    for(key2 in dataCopy2) {
+                        if (event === "messageFromBD" || event === "messageUser") {
+                            var arr = key2.split("%%'#");
+                            var loginUser = arr[0];
+                            var messageUser = arr[1];
+                            var dateMessage = dataCopy2[key2];
+                            document.getElementById("chatTable").insertRow(-1).innerHTML =
+                                    '<td class="firstTd">'+ loginUser + ':</td><td class="secondTd">' + messageUser +
+                                    '</td><td class="lastTd">' + dateMessage + '</td>';
+                            console.log("dataCopy3: " + loginUser + ", " + messageUser + ", " + dateMessage);
+                        } else if (event === "userOnline") {
+                            var userOnline = dataCopy2[key2];
+                            document.getElementById("usersOnlineLabel").innerText += userOnline + "\n";
+                        }
+                    }
+                }
+            }
+        };
+
+        function sendMessage(mes) {
+            buttonSend.value = "send";
+            document.getElementById("myLogin").innerText = login + ":";
+            if (mes != null && mes != '') {
+                websocket.send(mes);
+                document.getElementById("usersOnlineLabel").innerText = "";
+                websocket.close();
+                window.location.href = "http://localhost:8080/chat_home.html";
+            } else {
+                if (k == 0) {
+                    websocket.send(login);
+                } else {
+                    websocket.send(messageText.value);
+                    messageText.value = "";
+                }
+                k = 1;
+            }
+        }
+
+        function closeConnect(){
+            sendMessage("log out");
+        }
+
+    </script>
+</head>
+<body>
+<div id="1" class="main">
+    <div class="userOnline">
+        <div class="usOnl">
+            <label>Online:</label><br/><br/>
+            <label class="users" id="usersOnlineLabel"></label>
+        </div>
+    </div>
+    <div class = "centreImage">
+        <table id="chatTable"></table><br/>
+    </div>
+    <div class="footer">
+        <label class="login" id="myLogin"></label>
+        <textarea id="messageText" rows="10" cols="45"></textarea><br/>
+        <input class="sendMes" type="button" id="buttonSend" value="Start chat" onclick="sendMessage();" />
+        <input class="closeChat" type="button" value="Log out" id="logOut" onclick="closeConnect();" />
+    </div>
+</div>
+</body>
+</html>
